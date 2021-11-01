@@ -1,0 +1,10 @@
+<RCC>
+  <qresource>
+    <file>images/down.png</file>
+    <file>images/lift.png</file>
+    <file>images/right.png</file>
+    <file>images/shut.png</file>
+    <file>images/shuton.png</file>
+    <file>images/up.png</file>
+  </qresource>
+</RCC>

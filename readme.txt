@@ -1,0 +1,1 @@
+pyinstaller -F -i logo.ico DiskDiagnostic.py

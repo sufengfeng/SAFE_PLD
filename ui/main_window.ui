@@ -252,7 +252,7 @@
           <item>
            <widget class="QLabel" name="label">
             <property name="text">
-             <string>MIN:</string>
+             <string>MIN:0x</string>
             </property>
            </widget>
           </item>
@@ -279,14 +279,14 @@
           <item>
            <widget class="QLabel" name="label_4">
             <property name="text">
-             <string>MAX:</string>
+             <string>MAX:0x</string>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QLineEdit" name="lineEdit_filter_max">
             <property name="text">
-             <string>65535</string>
+             <string>FFFF</string>
             </property>
            </widget>
           </item>
@@ -427,11 +427,6 @@
          <widget class="QTableWidget" name="tableWidget_Info">
           <column>
            <property name="text">
-            <string>名称</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
             <string>使能</string>
            </property>
           </column>
@@ -452,7 +447,17 @@
           </column>
           <column>
            <property name="text">
+            <string>名称</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
             <string>数值</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>HEX</string>
            </property>
           </column>
          </widget>

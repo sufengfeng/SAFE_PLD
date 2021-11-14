@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+import logging
 import os
 
 import sys
@@ -30,31 +31,52 @@ def get_data_str(str_data, len):
 
 _READ = 0
 # 对象字典
-Direct_form = [
-    [0x2000, 0x01, _READ, "版本", ],  # g_sGlobalStatusParam.m_nVersion), 4},
-    [0x2000, 0x02, _READ, "设备类型", ],  # g_sGlobalFuncParam.m_eDeviceType), 4},
-    [0x2000, 0x03, _READ, "温度", ],  # g_sGlobalStatusParam.m_fTemperature), 4},
-    [0x2000, 0x04, _READ, "状态机", ],  # g_sGlobalStatusParam.m_eCurrentStatus), 4},
+# Direct_form = [
+#     [0x2000, 0x01, _READ, "版本", ],  # g_sGlobalStatusParam.m_nVersion), 4},
+#     [0x2000, 0x02, _READ, "设备类型", ],  # g_sGlobalFuncParam.m_eDeviceType), 4},
+#     [0x2000, 0x03, _READ, "温度", ],  # g_sGlobalStatusParam.m_fTemperature), 4},
+#     [0x2000, 0x04, _READ, "状态机", ],  # g_sGlobalStatusParam.m_eCurrentStatus), 4},
+#
+#     [0x2000, 0x05, _READ, "错误码", ],  # g_sGlobalStatusParam.m_nInterErrCode), 4},
+#
+#     [0x2001, 0x01, _READ, "编码器3速度", ],  # g_sGlobalStatusParam.m_sEncodeInfor[3].m_nCurrentSpeed), 4},
+#     [0x2001, 0x02, _READ, "编码器3速度等级", ],
+#     # g_sGlobalStatusParam.m_sEncodeInfor[3].m_nCurrentSpeedLevel), 4},
+#     [0x2001, 0x03, _READ, "编码器4速度", ],  # g_sGlobalStatusParam.m_sEncodeInfor[4].m_nCurrentSpeed), 4},
+#     [0x2001, 0x04, _READ, "编码器4速度等级", ],
+#     # g_sGlobalStatusParam.m_sEncodeInfor[4].m_nCurrentSpeedLevel), 4},
+#
+#     [0x2002, 0x01, _READ, "机器人速度", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nCurrentSpeed), 4},
+#     [0x2002, 0x02, _READ, "机器人速度等级", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nSpeedLevle), 4},
+#     [0x2002, 0x03, _READ, "左右轮差速", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nSpeedDiff), 4},
+#     [0x2002, 0x04, _READ, "左右轮差速等级", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nSpeedDiffLevle), 4},
+#
+#     [0x2002, 0x05, _READ, "机器人方向", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nDirection), 4},
+# ]
+# Direct_form = []
 
-    [0x2000, 0x05, _READ, "错误码", ],  # g_sGlobalStatusParam.m_nInterErrCode), 4},
-
-    [0x2001, 0x01, _READ, "编码器3速度", ],  # g_sGlobalStatusParam.m_sEncodeInfor[3].m_nCurrentSpeed), 4},
-    [0x2001, 0x02, _READ, "编码器3速度等级", ],
-    # g_sGlobalStatusParam.m_sEncodeInfor[3].m_nCurrentSpeedLevel), 4},
-    [0x2001, 0x03, _READ, "编码器4速度", ],  # g_sGlobalStatusParam.m_sEncodeInfor[4].m_nCurrentSpeed), 4},
-    [0x2001, 0x04, _READ, "编码器4速度等级", ],
-    # g_sGlobalStatusParam.m_sEncodeInfor[4].m_nCurrentSpeedLevel), 4},
-
-    [0x2002, 0x01, _READ, "机器人速度", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nCurrentSpeed), 4},
-    [0x2002, 0x02, _READ, "机器人速度等级", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nSpeedLevle), 4},
-    [0x2002, 0x03, _READ, "左右轮差速", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nSpeedDiff), 4},
-    [0x2002, 0x04, _READ, "左右轮差速等级", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nSpeedDiffLevle), 4},
-
-    [0x2002, 0x05, _READ, "机器人方向", ],  # g_sGlobalStatusParam.m_sRobotBasicnfo.m_nDirection), 4},
-]
 
 ExcelFILENAME = "./ObjectDirect.xls"
 
+logging.basicConfig(
+    format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+    datefmt='%Y-%m-%d:%H:%M:%S',
+    level=logging.DEBUG
+)
+
+logger = logging.getLogger(__name__)
+
+
+# TYPE_DIRECT = [
+#     "int8_t",
+#     "int16_t",
+#     "int32_t",
+#     "uint8_t",
+#     "uint16_t",
+#     "uint32_t",
+#     "uint32_t",
+#     "HEX"
+# ]
 
 class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
     signal_TestControl = pyqtSignal(int)
@@ -110,7 +132,7 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lineEdit_filter_min.setValidator(validator)
         self.lineEdit_filter_max.setValidator(validator)
 
-        handle_excel.read_excel(ExcelFILENAME,self.tableWidget_Info)
+        handle_excel.read_excel(ExcelFILENAME, self.tableWidget_Info)
 
         for i in range(self.tableWidget_Info.columnCount()):
             print(self.tableWidget_Info.cellWidget(0, i))
@@ -120,6 +142,7 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.pushButton_SetPath.clicked.connect(self.setBrowerPath)
         self.pushButton_save.clicked.connect(self.savefile)
         self.pushButton_update.clicked.connect(self.on_updateTable)
+        self.on_clear_tablewidge()  # 清空数据
 
     def on_updateTable(self):
         handle_excel.read_excel(ExcelFILENAME, self.tableWidget_Info)
@@ -131,17 +154,29 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
     def savefile(self):
 
         if handle_excel.saveExcelFile(ExcelFILENAME, self.tableWidget_Info):
-            self.statusbar.showMessage("save file successfully",3000)
+            self.statusbar.showMessage("save file successfully", 3000)
         else:
             self.statusbar.showMessage("save file faied", 3000)
+
     def outSelect(self, Item=None):
         if Item == None:
             return
         print(Item.text())
 
     def on_clear_tablewidge(self):
-        for i in range(len(Direct_form)):
-            self.tableWidget_Info.setItem(i, 5, QTableWidgetItem(str("")))
+        item_color=QColor(240, 240, 240)
+        try:
+            for i in range(self.tableWidget_Info.rowCount()):
+                if i %2==0:
+                    self.tableWidget_Info.item(i, 0).setBackground(item_color)
+                    self.tableWidget_Info.item(i, 1).setBackground(item_color)
+                    self.tableWidget_Info.item(i, 2).setBackground(item_color)
+                    self.tableWidget_Info.item(i, 3).setBackground(item_color)
+                    self.tableWidget_Info.item(i, 4).setBackground(item_color)
+                self.tableWidget_Info.setItem(i, 5, QTableWidgetItem(''))
+                self.tableWidget_Info.setItem(i, 6, QTableWidgetItem(''))
+        except Exception as e:
+            logging.error(e)
 
     # 是否上传复选框
     def on_upload_check(self, check):
@@ -168,24 +203,48 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
         send_msg.Data[6] = 0
         send_msg.Data[7] = 0
         if self.m_bIsStarted:
-            for i in range(len(Direct_form)):
-                value1 = Direct_form[i][0] & 0xff
+            rowLen = self.tableWidget_Info.rowCount()
+            for i in range(rowLen - 1):
+                index_, subindex_ = self.get_index_from_row(i)
+                if index_ == "" or subindex_ == "":
+                    continue
+                value1 = index_ & 0xff
                 send_msg.Data[1] = value1
 
-                value2 = Direct_form[i][0] // 0xff
+                value2 = index_ // 0xff
                 send_msg.Data[2] = value2
 
-                value3 = Direct_form[i][1]
-                send_msg.Data[3] = value3
+                send_msg.Data[3] = subindex_
 
                 self.insert_frame(send_msg, False)
                 ret = self.m_sControlCan.VCI_Transmit(4, 0, 0, byref(send_msg), 1)
+
+    def get_index_from_row(self, row):
+        index = ""
+        subindex = ""
+        try:
+            strValue = self.tableWidget_Info.item(row, 0).text()
+            isEnable = int(strValue, 10)
+            if isEnable:
+                strValue = self.tableWidget_Info.item(row, 1).text()
+                index = int(strValue, 16)
+
+                strValue = self.tableWidget_Info.item(row, 2).text()
+                subindex = int(strValue, 16)
+        except Exception as e:
+            logging.error(e)
+        return index, subindex
 
     def on_timeout_recv(self):
         # 接收参数定义
         if self.m_bIsStarted:
             recv_msg = VCI_CAN_OBJ()
-            recvnum = self.m_sControlCan.VCI_Receive(4, 0, 0, pointer(recv_msg), 1, 0)
+            recvnum = 0
+            try:
+                recvnum = self.m_sControlCan.VCI_Receive(4, 0, 0, pointer(recv_msg), 1, 0)
+            except Exception as e:
+                recvnum = 0
+                logging.error(e)
             if recvnum != 0:
                 print(recvnum, '%#x' % (recv_msg.ID), recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2],
                       recv_msg.Data[3], recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7])
@@ -194,9 +253,6 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.handle_sdo(recv_msg)
             elif recvnum == 0xFF:
                 pass
-        # self.textBrowser_RobotInfor.clear()
-        # self.textBrowser_RobotInfor.insertPlainText(str(sdiskio))
-        # self.textBrowser_RobotInfor.insertPlainText(str("\n"))
 
     def filt_frame(self, recv_msg):
         filter_min = self.lineEdit_filter_min.text()
@@ -204,11 +260,11 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
         if (filter_min == ""):
             filter_min = 0
         if (filter_max == ""):
-            filter_max = 255
+            filter_max = 0xFFFF
 
-        if (recv_msg.ID < int(filter_min)):
+        if (recv_msg.ID < int(filter_min, 16)):
             return False
-        if (recv_msg.ID > int(filter_max)):
+        if (recv_msg.ID > int(filter_max, 16)):
             return False
         return True
 
@@ -241,10 +297,56 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
         self.tableWidget_Frame.setItem(0, 5, QTableWidgetItem(str(strData)))
 
     def find_index(self, index, subindex):
-        for i in range(len(Direct_form)):
-            if Direct_form[i][0] == index and Direct_form[i][1] == subindex:
+        for i in range(self.tableWidget_Info.rowCount()):
+            index_, subindex_ = self.get_index_from_row(i)
+            if index_ == "" or subindex_ == "":
+                continue
+            if index_ == index and subindex_ == subindex:
                 return i
         return 0xFF
+
+    def get_value_by_type(self, data_type, recv_msg):
+        value = 0
+        if data_type == "int8_t":
+            for i in range(1):
+                value = value * 256
+                tmp_value = recv_msg.Data[4 - i] & 0xff
+                value = value + tmp_value
+
+                if value > 2 ** 7:
+                    value = value - 2 ** 8
+        elif data_type == "int16_t":
+            for i in range(2):
+                value = value * 256
+                tmp_value = recv_msg.Data[5 - i] & 0xff
+                value = value + tmp_value
+
+                if value > 32768:
+                    value = value - 2 ** 16
+        elif data_type == "int32_t":
+            for i in range(4):
+                value = value * 256
+                tmp_value = recv_msg.Data[7 - i] & 0xff
+                value = value + tmp_value
+
+                if value > 2147483648:
+                    value = value - 4294967296
+        elif data_type == "uint8_t":
+            for i in range(1):
+                value = value * 256
+                tmp_value = recv_msg.Data[4 - i] & 0xff
+                value = value + tmp_value
+        elif data_type == "uint16_t":
+            for i in range(2):
+                value = value * 256
+                tmp_value = recv_msg.Data[5 - i] & 0xff
+                value = value + tmp_value
+        elif data_type == "uint32_t":
+            for i in range(4):
+                value = value * 256
+                tmp_value = recv_msg.Data[7 - i] & 0xff
+                value = value + tmp_value
+        return value
 
     def handle_sdo(self, recv_msg):
         node_id = recv_msg.ID - 0x580
@@ -255,16 +357,24 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
             subindex = recv_msg.Data[3] & 0xff
             dictIndex = self.find_index(index, subindex)
             if dictIndex != 0xff:
-                self.tableWidget_Info.setItem(dictIndex, 0, QTableWidgetItem(str(Direct_form[dictIndex][3])))
-                self.tableWidget_Info.setItem(dictIndex, 1, QTableWidgetItem(str(1)))
-                self.tableWidget_Info.setItem(dictIndex, 2, QTableWidgetItem(str('%#x' % (index))))
-                self.tableWidget_Info.setItem(dictIndex, 3, QTableWidgetItem(str('%#x' % (subindex))))
-                value = 0
-                for i in range(4):
-                    value = value * 256
-                    tmp_value = recv_msg.Data[7 - i] & 0xff
-                    value = value + tmp_value
-                self.tableWidget_Info.setItem(dictIndex, 5, QTableWidgetItem(str(value)))
+                # self.tableWidget_Info.setItem(dictIndex, 0, QTableWidgetItem(str(Direct_form[dictIndex][3])))
+                # self.tableWidget_Info.setItem(dictIndex, 1, QTableWidgetItem(str(1)))
+
+                # self.tableWidget_Info.setItem(dictIndex, 1, QTableWidgetItem(str('%#x' % (index))))
+                # self.tableWidget_Info.setItem(dictIndex, 2, QTableWidgetItem(str('%#x' % (subindex))))
+                data_type = self.tableWidget_Info.item(dictIndex, 3).text()
+                value = self.get_value_by_type(data_type, recv_msg)
+                # 判断是否发生改变
+                if self.tableWidget_Info.item(dictIndex, 5).text() != str(value):
+                    item_color = QColor(255, 255, 200)
+                    self.tableWidget_Info.setItem(dictIndex, 5, QTableWidgetItem(str(value)))
+                    self.tableWidget_Info.setItem(dictIndex, 6, QTableWidgetItem(str('%#x' % (value))))
+                    self.tableWidget_Info.item(dictIndex, 5).setBackground(item_color)
+                    self.tableWidget_Info.item(dictIndex, 6).setBackground(item_color)
+                else:
+                    item_color = QColor(255, 255, 255)
+                    self.tableWidget_Info.item(dictIndex, 5).setBackground(item_color)
+                    self.tableWidget_Info.item(dictIndex, 6).setBackground(item_color)
             else:
                 print("not find " + str(index) + " " + str(subindex))
 

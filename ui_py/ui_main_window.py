@@ -164,10 +164,10 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
         print(Item.text())
 
     def on_clear_tablewidge(self):
-        item_color=QColor(240, 240, 240)
+        item_color = QColor(240, 240, 240)
         try:
             for i in range(self.tableWidget_Info.rowCount()):
-                if i %2==0:
+                if i % 2 == 0:
                     self.tableWidget_Info.item(i, 0).setBackground(item_color)
                     self.tableWidget_Info.item(i, 1).setBackground(item_color)
                     self.tableWidget_Info.item(i, 2).setBackground(item_color)
@@ -217,7 +217,8 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
                 send_msg.Data[3] = subindex_
 
                 self.insert_frame(send_msg, False)
-                ret = self.m_sControlCan.VCI_Transmit(4, 0, 0, byref(send_msg), 1)
+                channel=self.spinBox_channel.value()
+                ret = self.m_sControlCan.VCI_Transmit(4, 0, channel, byref(send_msg), 1)
 
     def get_index_from_row(self, row):
         index = ""
@@ -241,7 +242,8 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
             recv_msg = VCI_CAN_OBJ()
             recvnum = 0
             try:
-                recvnum = self.m_sControlCan.VCI_Receive(4, 0, 0, pointer(recv_msg), 1, 0)
+                channel = self.spinBox_channel.value()
+                recvnum = self.m_sControlCan.VCI_Receive(4, 0, channel, pointer(recv_msg), 1, 0)
             except Exception as e:
                 recvnum = 0
                 logging.error(e)
@@ -251,6 +253,8 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.insert_frame(recv_msg, True)  # 插入帧列表
                 if recv_msg.ID > 0x580:
                     self.handle_sdo(recv_msg)
+                if recv_msg.ID > 0xA0 and recv_msg.ID < 0xE0:
+                    self.HandlUpgradeCmd(recv_msg)
             elif recvnum == 0xFF:
                 pass
 
@@ -378,6 +382,23 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
             else:
                 print("not find " + str(index) + " " + str(subindex))
 
+    # 设置升级状态机
+    def SetUpgradeState(self, state):
+        logger.info("SetUpgradeState %d" % (state))
+        self.m_nUpgradeState = state
+
+    # 处理升级相关数据帧
+    def HandlUpgradeCmd(self, recv_msg):
+        if recv_msg.ID == 0xA0 + self.m_nNodeID:
+            if recv_msg.Data[1] == self.m_nNodeID:
+                if recv_msg.Data[1] == 0x9:
+                    self.SetUpgradeState(2)
+                elif recv_msg.Data[1] == 0x16:
+                    self.SetUpgradeState(3)
+
+                elif recv_msg.Data[1] == 0x16:
+                    self.SetUpgradeState(4)
+
     def on_connected(self):
         if self.m_bIsConnected:
             DisConnectControlCan(self.m_sControlCan)
@@ -385,7 +406,8 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
             self.pushButton_Connect.setText("Connect")
             self.statusbar.showMessage("disconnected...", 3000)
         else:
-            self.m_sControlCan, iRet01, iRet02 = ConnectControlCan()
+            channel=self.spinBox_channel.value()
+            self.m_sControlCan, iRet01, iRet02 = ConnectControlCan(channel)
             if iRet01 == 1 and iRet02 == 1:
                 self.m_bIsConnected = True
                 self.pushButton_Connect.setText("Disconnect")
@@ -394,12 +416,14 @@ class Main_Form(QtWidgets.QMainWindow, Ui_MainWindow):
     def on_started(self):
         if self.m_bIsConnected:
             if self.m_bIsStarted:
-                iRet = StopControlCan(self.m_sControlCan, 0)
+                channel = self.spinBox_channel.value()
+                iRet = StopControlCan(self.m_sControlCan, channel)
                 if iRet == 1:
                     self.pushButton_start.setText("Start")
                     self.m_bIsStarted = False
             else:
-                iRet = StartControlCan(self.m_sControlCan, 0)
+                channel=self.spinBox_channel.value()
+                iRet = StartControlCan(self.m_sControlCan, channel)
                 if iRet == 1:
                     self.m_bIsStarted = True
                     self.pushButton_start.setText("Stop")

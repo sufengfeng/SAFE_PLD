@@ -12,7 +12,7 @@ import sys
 import platform
 import ctypes
 import struct
-from time import *
+
 from tkinter import *
 from tkinter import ttk  # 下拉菜单使用
 from tkinter.scrolledtext import ScrolledText
@@ -26,10 +26,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
-# from ui_py.ui_main_window import logger
-
-CANINDEX = 0
 
 
 class VCI_CAN_OBJ(Structure):
@@ -83,9 +79,15 @@ def InitCRCCalcParam():
         cmb_CodeType_desc.place(x=60 * 3, y=0, width=96, height=24)
         FileName = ''
     else:
-        LoadFile.place(x=0, y=8, width=120, height=36)
+        LoadFile.place(x=360, y=8, width=100, height=36)
+        # LoadFile1.place(x=130, y=8, width=100, height=36)
         contents.delete(1.0, END)
-        contents.insert(1.0, '请通过[打开.bin文件]按钮载入.bin文件。')
+        # contents.insert(1.0,'请通过[打开.bin文件]按钮载入.bin文件。')
+        contents.insert(1.0, '操纵步骤：')
+        contents.insert(2.0, '1、选择CAN ID.')
+        contents.insert(3.0, '2、选择OTA类型.')
+        contents.insert(4.0, '3、点击[打开文件]按钮载入OTA文件.')
+        # contents.insert(1.0,'请通过[打开固件文件]按钮载入固件的.bin文件。')
         contents.config(state=DISABLED)  # 关闭文本输入框编辑状态
         contents.config(bg='gainsboro')
         cmb_CodeType.place_forget()
@@ -122,6 +124,21 @@ def OpenFile():
     return FileName
 
 
+def OpenFile1():
+    global FileName
+    global FileSize
+    FileName_t = tkinter.filedialog.askopenfilename()  # 取消后是返回一个空字符串
+    if not FileName_t:
+        FileSize_t = 0
+        # print("未选择文件")
+    else:
+        FileName = FileName_t
+        Contents_ScrolledText_Set()
+        CRCClac()
+        OTACanMoto()
+    return FileName
+
+
 def Dragged_file(files):
     global FileName
     global FileSize
@@ -134,16 +151,15 @@ def Dragged_file(files):
     return FileName
 
 
-def Print_Radiobutton():
-    # print("CalcTypeg=%d:" % CalcType.get(), end="")
-    # if 1 == CalcType.get():
-    # print("计算字符串CRC  ", end="")
-    # print("%s编码" % cmb_CodeType.get())
-    # else:
-    # print("计算文件CRC  ")
-    InitCRCCalcParam()
-    return 0
-
+# def Print_Radiobutton():
+# print("CalcTypeg=%d:" % CalcType.get(), end="")
+# if 1 == CalcType.get():
+# print("计算字符串CRC  ", end="")
+# print("%s编码" % cmb_CodeType.get())
+# else:
+# print("计算文件CRC  ")
+# InitCRCCalcParam()
+# return 0
 
 def CheckSumAdd08Anti(buffer, length):
     addsum08 = 0x0000
@@ -171,13 +187,13 @@ def CrcCalc16_XMODEM(Buffer, Len):
 
 
 def LinkCrcCalcFunc(buffer, Len):
-    if 'CRC16' == cmb_CRCType.get():
-        if 0 == CLibEnable.get():  # 如果不启用dll动态库
-            # CRC = (CrcCalc16_XMODEM(buffer, Len) & 0xffff)
-            CRC = (CheckSumAdd08Anti(buffer, Len) & 0xffff)
-        else:
-            CRC = (CrcCalcDLL.GetCRC16(buffer, Len) & 0xffff)
-        CRC_value.set("0x%04X" % CRC)
+    # if 'CRC16' == cmb_CRCType.get():
+    if 0 == CLibEnable.get():  # 如果不启用dll动态库
+        # CRC = (CrcCalc16_XMODEM(buffer, Len) & 0xffff)
+        CRC = (CheckSumAdd08Anti(buffer, Len) & 0xffff)
+    else:
+        CRC = (CrcCalcDLL.GetCRC16(buffer, Len) & 0xffff)
+    CRC_value.set("0x%04X" % CRC)
     return CRC
 
 
@@ -218,7 +234,6 @@ def CRCClac():
 
 
 def SendCanData(bufer):
-    global CANINDEX
     global so
     # 发送参数定义
     send_msg = VCI_CAN_OBJ(ID=1, DataLen=8, ExternFlag=0, RemoteFlag=0, SendType=0, TimeFlag=1, TimeStamp=0x12345678)
@@ -231,12 +246,14 @@ def SendCanData(bufer):
     send_msg.Data[6] = bufer[6]
     send_msg.Data[7] = bufer[7]
     # 发送函数
-    ret = so.VCI_Transmit(4, 0, CANINDEX, byref(send_msg), 1)
+    try:
+        ret = so.VCI_Transmit(4, 0, 1, byref(send_msg), 1)
+    except OSError:
+        tkinter.messagebox.showwarning('警告', '亲，请连接itekon的CAN盒（型号：USBCAN-2I）到CAN1口~')
     return
 
 
 def SendCanDataCmd(bufer, MotoId, Cmd):
-    global CANINDEX
     global so
     # 发送参数定义
     send_msg = VCI_CAN_OBJ(DataLen=8, ExternFlag=0, RemoteFlag=0, SendType=0, TimeFlag=1, TimeStamp=0x12345678)
@@ -251,18 +268,37 @@ def SendCanDataCmd(bufer, MotoId, Cmd):
     send_msg.Data[7] = bufer[7]
     # 发送函数
     # if Cmd == 0xA0:
-    # logger.info("%d %d %d %d - %02x %02x %02x %02x %02x %02x %02x %02x"%(send_msg.ID,MotoId,Cmd,(Cmd & 0xF),send_msg.Data[0],send_msg.Data[1],send_msg.Data[2],send_msg.Data[3],send_msg.Data[4],send_msg.Data[5],send_msg.Data[6],send_msg.Data[7]))
-    ret = so.VCI_Transmit(4, 0, CANINDEX, byref(send_msg), 1)
+    # print("%d %d %d %d - %02x %02x %02x %02x %02x %02x %02x %02x"%(send_msg.ID,MotoId,Cmd,(Cmd & 0xF),send_msg.Data[0],send_msg.Data[1],send_msg.Data[2],send_msg.Data[3],send_msg.Data[4],send_msg.Data[5],send_msg.Data[6],send_msg.Data[7]))
+    ret = so.VCI_Transmit(4, 0, 1, byref(send_msg), 1)
     return
 
 
 def OTACanMoto():
-    global CANINDEX
     global CanId
+    global OTAtype
     global so
     global CanCrc
     global FileName
     global FileSize
+    # CanId = int(cmb_CanId.get())
+    # OTAtype = int(cmb_OTAtype.get())
+    CanIdStr = cmb_CanId.get()
+    OTAtypeStr = cmb_OTAtype.get()
+    print("CanId = %s OTAtype = %s" % (CanIdStr, OTAtypeStr))
+    if CanIdStr == '请选择CAN ID' or OTAtypeStr == '请选择OTA类型':
+        tkinter.messagebox.showwarning('警告', '亲，请先选择CAN ID和OTA类型~')
+        return
+    '''
+    CanId = int(CanIdStr)
+    if OTAtypeStr == "APP":
+        OTAtype = 1
+    elif OTAtypeStr == "CFG":
+        OTAtype = 2
+    if OTAtypeStr == "APP":
+    '''
+    CanId = cmb_CanId.current()
+    OTAtype = cmb_OTAtype.current()
+    print("CanId = %d OTAtype = %d" % (CanId, OTAtype))
     if not FileName:
         tkinter.messagebox.showwarning('警告', '亲，请先选择文件~')
     elif 0 == FileSize:
@@ -270,7 +306,10 @@ def OTACanMoto():
     else:
         contents.config(state=NORMAL)  # 打开文本输入框编辑状态
         timestr = datetime.datetime.now().strftime('%T')
-        contents.insert(END, '\n%s 电机固件更新开始' % timestr)  # 也是从文本尾插入
+        if OTAtype == 1:
+            contents.insert(END, '\n%s 电机固件更新开始' % timestr)  # 也是从文本尾插入
+        elif OTAtype == 2:
+            contents.insert(END, '\n%s 电机配置更新开始' % timestr)  # 也是从文本尾插入
         contents.update()
         so = ctypes.windll.LoadLibrary("./ControlCAN.dll")
         # 打开设备
@@ -296,99 +335,122 @@ def OTACanMoto():
         buffer = [0x01, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]  # 获取电机版本号
         # buffer = [0x01,0x7d,0x00,0x00,0x00,0x00,0x00,0x00] # 获取电机版本号
         buffer_index = 0xffffffff
-
-        # Setp01:获取版本号
-        buffer[0] = CanId
-
-        logger.info("获取电机版本号-begin")
-        SendCanData(buffer)  # 发送获取版本信息数据
-        logger.info("send:%d %d %d %d %d %d %d %d " % (
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
-        while 1:
-            recvnum = so.VCI_Receive(4, 0, CANINDEX, pointer(recv_msg), 1, 200)  # 200毫秒超时接收
-            if recvnum > 0 and recvnum != 0xffffffff:  # 读取到返回帧，并且没有失败
+        '''
+        for i in range(1,14):
+            buffer[0] = i
+            #print("获取%d号电机版本号"%i)
+            SendCanData(buffer) # 发送获取版本信息数据
+            recvnum = so.VCI_Receive(4, 0, 1, pointer(recv_msg), 1, 200) # 200毫秒超时接收
+            #print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+            #if recvnum > 0 and recvnum != 0xffffffff: # 读取到返回帧，并且没有失败
+            if recvnum == 1 and recv_msg.Data[1] == 9:
+                CanId=recv_msg.Data[0]
+                #print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+                timestr = datetime.datetime.now().strftime('%T')
+                contents.insert(END, '\n%s 获取到CAN ID=%d电机的版本号:0x%02x%02x%02x%02x'%(timestr,CanId,recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5]))   #也是从文本尾插入
+                #contents.insert(END, '\n%s 获取到CAN ID=%d 电机的版本号'%(time,CanId))   #也是从文本尾插入
+                contents.update()
+                contents.see(END)
+                #print("获取电机版本号break")
+                break
+            #print("获取%d号电机版本号"%i)
+            SendCanData(buffer) # 发送获取版本信息数据
+            recvnum = so.VCI_Receive(4, 0, 1, pointer(recv_msg), 1, 200) # 200毫秒超时接收
+            #print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+            #if recvnum > 0 and recvnum != 0xffffffff: # 读取到返回帧，并且没有失败
+            if recvnum == 1 and recv_msg.Data[1] == 9:
+                CanId=recv_msg.Data[0]
+                #print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+                timestr = datetime.datetime.now().strftime('%T')
+                contents.insert(END, '\n%s 获取到CAN ID=%d电机的版本号:0x%02x%02x%02x%02x'%(timestr,CanId,recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5]))   #也是从文本尾插入
+                #contents.insert(END, '\n%s 获取到CAN ID=%d 电机的版本号'%(time,CanId))   #也是从文本尾插入
+                contents.update()
+                contents.see(END)
+                #print("获取电机版本号break")
+                break
+        '''
+        while True:
+            buffer[0] = CanId
+            # print("获取%d号电机版本号"%i)
+            SendCanData(buffer)  # 发送获取版本信息数据
+            logger.info("send:%d %d %d %d %d %d %d %d " % (
+                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
+            recvnum = so.VCI_Receive(4, 0, 1, pointer(recv_msg), 1, 200)  # 200毫秒超时接收
+            # print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+            # if recvnum > 0 and recvnum != 0xffffffff: # 读取到返回帧，并且没有失败
+            if recvnum == 1 and recv_msg.Data[1] == 9:
                 logger.info("Rece:[%d %d] %d %d %d %d %d %d %d %d " % (
-                recvnum, recv_msg.ID, recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2], recv_msg.Data[3],
-                recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7]))
+                    recvnum, recv_msg.ID, recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2], recv_msg.Data[3],
+                    recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7]))
 
-                if recvnum == 1 and recv_msg.Data[1] == 9:
-                    # CanId=recv_msg.Data[0]
-                    # print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
-                    timestr = datetime.datetime.now().strftime('%T')
-                    contents.insert(END, '\n%s 获取到CAN ID=%d电机的版本号:0x%02x%02x%02x%02x' % (
+                CanId = recv_msg.Data[0]
+                # print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+                timestr = datetime.datetime.now().strftime('%T')
+                contents.insert(END, '\n%s 获取到CAN ID=%d电机的版本号:0x%02x%02x%02x%02x' % (
                     timestr, CanId, recv_msg.Data[2], recv_msg.Data[3], recv_msg.Data[4], recv_msg.Data[5]))  # 也是从文本尾插入
-                    # contents.insert(END, '\n%s 获取到CAN ID=%d 电机的版本号'%(time,CanId))   #也是从文本尾插入
-                    contents.update()
-                    contents.see(END)
-                    logger.info("获取电机版本号-end\n")
-                    break
+                # contents.insert(END, '\n%s 获取到CAN ID=%d 电机的版本号'%(time,CanId))   #也是从文本尾插入
+                contents.update()
+                contents.see(END)
+                break
             else:
-                sleep(0.1)
-                SendCanData(buffer)  # 发送获取版本信息数据
-                logger.info("send:%d %d %d %d %d %d %d %d " % (
-                    buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
+                import time
+                time.sleep(0.1)  # 延时100ms
 
-        # Setp02:禁用电机
-        sleep(0.1)  # 延时100ms
+        import time
+        time.sleep(0.1)  # 延时100ms
         buffer[0] = CanId
         buffer[1] = 0x16  # 禁用电机
-        logger.info("禁用电机-begin")
-        SendCanData(buffer)  # 发送禁用电机命令
-        logger.info("send:%d %d %d %d %d %d %d %d " % (
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
         while True:
+            SendCanData(buffer)  # 发送禁用电机命令
+            logger.info("send:%d %d %d %d %d %d %d %d " % (
+                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
 
-            recvnum = so.VCI_Receive(4, 0, CANINDEX, pointer(recv_msg), 1, 100)  # 100毫秒超时接收
-            if recvnum > 0 and recvnum != 0xffffffff:  # 读取到返回帧，并且没有失败
+            recvnum = so.VCI_Receive(4, 0, 1, pointer(recv_msg), 1, 100)  # 100毫秒超时接收
+            # print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+            if recvnum == 1 :
                 logger.info("Rece:[%d %d] %d %d %d %d %d %d %d %d " % (
                     recvnum, recv_msg.ID, recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2], recv_msg.Data[3],
                     recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7]))
+                if recv_msg.Data[1] == 0x16:
+                    timestr = datetime.datetime.now().strftime('%T')
+                    contents.insert(END, '\n%s 禁用电机' % timestr)  # 也是从文本尾插入
+                    contents.update()
+                    contents.see(END)
+                    # print("禁用电机break")
+                    break
             else:
-                SendCanData(buffer)  # 发送禁用电机命令
-                logger.info("send:%d %d %d %d %d %d %d %d " % (
-                    buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
-            if recvnum == 1 and recv_msg.Data[1] == 0x16:
-                timestr = datetime.datetime.now().strftime('%T')
-                contents.insert(END, '\n%s 禁用电机' % timestr)  # 也是从文本尾插入
-                contents.update()
-                contents.see(END)
-                logger.info("禁用电机-end\n")
-                break
-            else:
-                sleep(0.1)
-
-        # Setp03:选择升级类型
-        sleep(0.1)  # 延时100ms
+                import time
+                time.sleep(0.1)  # 延时100ms
+        import time
+        time.sleep(0.1)  # 延时100ms
         buffer[0] = CanId
         buffer[1] = 0x7e  # 电机升级类型
-        buffer[3] = 0x00  # 升级电机驱动，非BOOT
-        logger.info("电机升级类型-begin")
-        SendCanData(buffer)  # 发送禁用电机命令
-        logger.info("send:%d %d %d %d %d %d %d %d " % (
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
+        if OTAtype == 1:
+            buffer[3] = 0
+        elif OTAtype == 2:
+            buffer[3] = 2
+        # buffer[3] = OTAtype - 1 # OTA类型：0->APP ;1->BOOT; 2 -> CFG
         while True:
+            SendCanData(buffer)  # 发送设置电机升级类型命令
+            logger.info("send:%d %d %d %d %d %d %d %d " % (
+                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
 
-            recvnum = so.VCI_Receive(4, 0, CANINDEX, pointer(recv_msg), 1, 100)  # 100毫秒超时接收
-            if recvnum > 0 and recvnum != 0xffffffff:  # 读取到返回帧，并且没有失败
+            recvnum = so.VCI_Receive(4, 0, 1, pointer(recv_msg), 1, 100)  # 100毫秒超时接收
+            # print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+            if recvnum == 1 :
                 logger.info("Rece:[%d %d] %d %d %d %d %d %d %d %d " % (
                     recvnum, recv_msg.ID, recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2], recv_msg.Data[3],
                     recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7]))
+                if recv_msg.Data[1] == 0x7e:
+                    time = datetime.datetime.now().strftime('%T')
+                    contents.insert(END, '\n%s 设置电机升级类型:%s' % (time, OTAtypeStr))  # 也是从文本尾插入
+                    contents.update()
+                    contents.see(END)
+                    # print("设置电机升级类型break")
+                    break
             else:
-                SendCanData(buffer)  # 发送禁用电机命令
-                logger.info("send:%d %d %d %d %d %d %d %d " % (
-                    buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
-            if recvnum == 1 and recv_msg.Data[1] == 0x7e:
-                time = datetime.datetime.now().strftime('%T')
-                contents.insert(END, '\n%s 设置电机升级类型' % time)  # 也是从文本尾插入
-                contents.update()
-                contents.see(END)
-                logger.info("设置电机升级类型-end\n")
-                break
-            else:
-                sleep(0.1)
-
-        # Setp04:下发总包校验
-        logger.info("下发总包校验-begin")
+                import time
+                time.sleep(0.1)  # 延时100ms
         FileWordNum = FileSize >> 2
         can_data = FileWordNum.to_bytes(4, byteorder='big', signed=False)
         can_crc = CanCrc.to_bytes(4, byteorder='big', signed=False)
@@ -400,41 +462,35 @@ def OTACanMoto():
         buffer[5] = can_crc[1]
         buffer[6] = can_crc[2]
         buffer[7] = can_crc[3]
-        logger.info("FileSize:%d %d %d %d %d %d %d %d %d %d " % (
-        FileSize, CanCrc, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
-        SendCanDataCmd(buffer, CanId, 0xA0)  # CAN1_SEND_UPDATE_INIT     0xA0
-        logger.info("send:%d %d %d %d %d %d %d %d " % (
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
+        # print(FileSize,CanCrc,buffer[0],buffer[1],buffer[2],buffer[3],buffer[4],buffer[5],buffer[6],buffer[7])
         while True:
-
-            recvnum = so.VCI_Receive(4, 0, CANINDEX, pointer(recv_msg), 1, 100)  # 100毫秒超时接收
-            if recvnum > 0 and recvnum != 0xffffffff:  # 读取到返回帧，并且没有失败
+            SendCanDataCmd(buffer, CanId, 0xA0)  # CAN1_SEND_UPDATE_INIT     0xA0
+            logger.info("send:%d %d %d %d %d %d %d %d " % (
+                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
+            recvnum = so.VCI_Receive(4, 0, 1, pointer(recv_msg), 1, 100)  # 100毫秒超时接收
+            # print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
+            if recvnum == 1:
                 logger.info("Rece:[%d %d] %d %d %d %d %d %d %d %d " % (
                     recvnum, recv_msg.ID, recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2], recv_msg.Data[3],
                     recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7]))
-            else:
-                SendCanDataCmd(buffer, CanId, 0xA0)  # CAN1_SEND_UPDATE_INIT     0xA0
-                logger.info("send:%d %d %d %d %d %d %d %d " % (
-                    buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
-            if recvnum == 1 and (recv_msg.ID & 0xFF0) == 0xB0:  # CAN1_RECV_EXPET_PACK_NO   0xB0
-                temp_buf = [0x00, 0x00, 0x00, 0x00]
-                temp_buf[0] = recv_msg.Data[0]
-                temp_buf[1] = recv_msg.Data[1]
-                temp_buf[2] = recv_msg.Data[2]
-                temp_buf[3] = recv_msg.Data[3]
-                buffer_index = int.from_bytes(temp_buf, byteorder='big', signed=True)
-                time = datetime.datetime.now().strftime('%T')
-                contents.insert(END, '\n%s 设置电机升级字节总数和校验和' % time)  # 也是从文本尾插入
-                contents.update()
-                contents.see(END)
-                logger.info("设置电机升级字节总数和校验和break,buffer_index = %d" % buffer_index)
-                logger.info("下发总包校验-end\n")
-                break
-            else:
-                sleep(0.1)  # 延时100ms
 
-        sleep(0.1)  # 延时100ms
-        # step5: 开始升级
+                if recv_msg.ID == 0xB0 + CanId:  # CAN1_RECV_EXPET_PACK_NO   0xB0
+                    temp_buf = [0x00, 0x00, 0x00, 0x00]
+                    temp_buf[0] = recv_msg.Data[0]
+                    temp_buf[1] = recv_msg.Data[1]
+                    temp_buf[2] = recv_msg.Data[2]
+                    temp_buf[3] = recv_msg.Data[3]
+                    buffer_index = int.from_bytes(temp_buf, byteorder='big', signed=True)
+                    time = datetime.datetime.now().strftime('%T')
+                    contents.insert(END, '\n%s 设置电机升级字节总数和校验和' % time)  # 也是从文本尾插入
+                    contents.update()
+                    contents.see(END)
+                    # print("设置电机升级字节总数和校验和break,buffer_index = %d"%buffer_index)
+                    break
+            else:
+                import time
+                time.sleep(0.1)  # 延时100ms
+
         with open(FileName, 'rb') as file:
             # buffer = file.read(FileSize)
             updata_ok = 0
@@ -450,70 +506,71 @@ def OTACanMoto():
                 buffer[5] = bufferbin[2]
                 buffer[6] = bufferbin[1]
                 buffer[7] = bufferbin[0]
-
-                logger.info("发送---%d/%d 字节--" % (i, FileSize))
-                SendCanDataCmd(buffer, CanId, 0xC0)  # CAN1_SEND_UPDATE_INIT     0xC0
-                logger.info("send:%d %d %d %d %d %d %d %d " % (
-                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
+                # print("---%d--"%i)
                 while True:
-                    recvnum = so.VCI_Receive(4, 0, CANINDEX, pointer(recv_msg), 1, 100)  # 100毫秒超时接收
-                    if recvnum > 0 and recvnum != 0xffffffff:  # 读取到返回帧，并且没有失败
+                    SendCanDataCmd(buffer, CanId, 0xC0)  # CAN1_SEND_UPDATE_INIT     0xA0
+                    logger.info("send:%d %d %d %d %d %d %d %d " % (
+                        buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
+                    recvnum = so.VCI_Receive(4, 0, 1, pointer(recv_msg), 1, 100)  # 100毫秒超时接收
+                    # if i > 125770:
+                    # print("%d %d - %02x %02x %02x %02x %02x %02x %02x %02x"%(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7]))
+                    if recvnum == 1 and recv_msg.ID == (0xB0 + CanId):  # CAN1_RECV_EXPET_PACK_NO   0xB0
                         logger.info("Rece:[%d %d] %d %d %d %d %d %d %d %d " % (
-                        recvnum, recv_msg.ID, recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2], recv_msg.Data[3],
-                        recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7]))
-                        if recvnum >= 1 and (recv_msg.ID & 0xFF0) == 0xB0:  # CAN1_RECV_EXPET_PACK_NO   0xB0
-                            temp_buf = [255, 255, 255, 255]
-                            temp_buf[0] = recv_msg.Data[0]
-                            temp_buf[1] = recv_msg.Data[1]
-                            temp_buf[2] = recv_msg.Data[2]
-                            temp_buf[3] = recv_msg.Data[3]
-                            buffer_indexcur = int.from_bytes(temp_buf, byteorder='big', signed=True)
-                            if buffer_indexcur == buffer_index + 1:
-                                loop_num = loop_num + 1
-                                if loop_num > 499:
-                                    time = datetime.datetime.now().strftime('%T')
-                                    contents.insert(END, '\n%s 电机升级第%d帧' % (time, buffer_index))  # 也是从文本尾插入
-                                    contents.update()
-                                    contents.see(END)
-                                    logger.info("电机升级第%d帧 %d" % (buffer_index, i))
-                                    loop_num = 0
-                                buffer_index = buffer_indexcur
-                                break
-                        elif recvnum == 1 and (recv_msg.ID & 0xFF0) == 0xD0:  # CAN1_RECV_PACK_TOTAL      0xD0
-                            temp_buf = [0x00, 0x00, 0x00, 0x00]
-                            temp_buf[0] = recv_msg.Data[0]
-                            temp_buf[1] = recv_msg.Data[1]
-                            temp_buf[2] = recv_msg.Data[2]
-                            temp_buf[3] = recv_msg.Data[3]
-                            buffer_total = int.from_bytes(temp_buf, byteorder='big', signed=True)
-                            temp_buf[0] = recv_msg.Data[4]
-                            temp_buf[1] = recv_msg.Data[5]
-                            temp_buf[2] = recv_msg.Data[6]
-                            temp_buf[3] = recv_msg.Data[7]
-                            buffer_checksum = int.from_bytes(temp_buf, byteorder='big', signed=True)
-                            time = datetime.datetime.now().strftime('%T')
-                            contents.insert(END, '\n%s 电机升级最后一帧,电机反馈文件总长%d字节，电机反馈校验和%d' % (
-                            time, buffer_total, buffer_checksum))  # 也是从文本尾插入
-                            contents.update()
-                            contents.see(END)
-                            logger.info("电机升级最后一帧,电机反馈文件总长%d字节，电机反馈校验和%d" % (buffer_total, buffer_checksum))
-                            updata_ok = 1
+                            recvnum, recv_msg.ID, recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2],
+                            recv_msg.Data[3],
+                            recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7]))
+                        temp_buf = [255, 255, 255, 255]
+                        temp_buf[0] = recv_msg.Data[0]
+                        temp_buf[1] = recv_msg.Data[1]
+                        temp_buf[2] = recv_msg.Data[2]
+                        temp_buf[3] = recv_msg.Data[3]
+                        buffer_indexcur = int.from_bytes(temp_buf, byteorder='big', signed=True)
+                        if buffer_indexcur == buffer_index + 1:
+                            loop_num = loop_num + 1
+                            if loop_num > 499:
+                                time = datetime.datetime.now().strftime('%T')
+                                contents.insert(END, '\n%s 电机升级第%d帧' % (time, buffer_index))  # 也是从文本尾插入
+                                contents.update()
+                                contents.see(END)
+                                # print("电机升级第%d帧 %d"%(buffer_index,i))
+                                loop_num = 0
+                            buffer_index = buffer_indexcur
                             break
+                    elif recvnum == 1 and recv_msg.ID == (0xD0 + CanId):  # CAN1_RECV_PACK_TOTAL      0xD0
+                        temp_buf = [0x00, 0x00, 0x00, 0x00]
+                        temp_buf[0] = recv_msg.Data[0]
+                        temp_buf[1] = recv_msg.Data[1]
+                        temp_buf[2] = recv_msg.Data[2]
+                        temp_buf[3] = recv_msg.Data[3]
+                        buffer_total = int.from_bytes(temp_buf, byteorder='big', signed=True)
+                        temp_buf[0] = recv_msg.Data[4]
+                        temp_buf[1] = recv_msg.Data[5]
+                        temp_buf[2] = recv_msg.Data[6]
+                        temp_buf[3] = recv_msg.Data[7]
+                        buffer_checksum = int.from_bytes(temp_buf, byteorder='big', signed=True)
+                        time = datetime.datetime.now().strftime('%T')
+                        contents.insert(END, '\n%s 电机升级最后一帧,电机反馈文件总长%d字节，电机反馈校验和%d' % (
+                            time, buffer_total, buffer_checksum))  # 也是从文本尾插入
+                        contents.update()
+                        contents.see(END)
+                        # print("电机升级最后一帧,电机反馈文件总长%d字节，电机反馈校验和%d"%(buffer_total,buffer_checksum))
+                        updata_ok = 1
+                        break
                     else:
-                        sleep(0.03)  # 延时100ms
-                        SendCanDataCmd(buffer, CanId, 0xC0)  # CAN1_SEND_UPDATE_INIT     0xC0
-                        logger.info("send:%d %d %d %d %d %d %d %d " % (buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
+                        import time
+                        time.sleep(0.01)  # 延时100ms
                 if updata_ok == 1:
-                    logger.info("电机升级结束")
+                    # print("电机升级结束")
                     break
-            logger.info("电机升级结束--%d  FileSize=%d buffer_index = %d" % (i, FileSize, buffer_index))
+            # print("电机升级结束--%d  FileSize=%d buffer_index = %d"%(i,FileSize,buffer_index))
         time = datetime.datetime.now().strftime('%T')
         contents.insert(END, '\n%s 电机等待重启' % time)  # 也是从文本尾插入
         contents.update()
         contents.see(END)
-        logger.info("电机等待重启")
+        # print("电机等待重启")
         file.close()
-        sleep(2)  # 延时2s
+        import time
+        time.sleep(2)  # 延时2s
 
         buffer[0] = CanId
         buffer[1] = 0x7d  # 电机重启命令
@@ -524,41 +581,46 @@ def OTACanMoto():
         buffer[6] = 0x00
         buffer[7] = 0x00
         SendCanData(buffer)
-        sleep(0.2)  # 延时200ms
-        SendCanData(buffer)
-        sleep(0.2)  # 延时200ms
+        import time
+        for i in range(1, 5):
+            time.sleep(0.2)  # 延时200ms
+            SendCanData(buffer)
+        import time
+        time.sleep(0.2)  # 延时200ms
 
         time = datetime.datetime.now().strftime('%T')
         contents.insert(END, '\n%s 电机升级结束,重启中' % time)  # 也是从文本尾插入
         contents.update()
         contents.see(END)
-        logger.info("电机升级结束,重启中")
+        # print("电机升级结束,重启中")
 
         break_flag = 0
         buffer = [0x01, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]  # 获取电机版本号
         buffer_index = 0xffffffff
         for i in range(1, 14):
             buffer[0] = i
-            logger.info("获取%d号电机版本号" % i)
+            # print("获取%d号电机版本号"%i)
             for j in range(10):
                 SendCanData(buffer)  # 发送获取版本信息数据
-                logger.info("send:%d %d %d %d %d %d %d %d " % (
-                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7]))
-                recvnum = so.VCI_Receive(4, 0, CANINDEX, pointer(recv_msg), 1, 200)  # 200毫秒超时接收
-                logger.info("Rece:[%d %d] %d %d %d %d %d %d %d %d " % (
-                recvnum, recv_msg.ID, recv_msg.Data[0], recv_msg.Data[1], recv_msg.Data[2], recv_msg.Data[3],
-                recv_msg.Data[4], recv_msg.Data[5], recv_msg.Data[6], recv_msg.Data[7]))
+                recvnum = so.VCI_Receive(4, 0, 1, pointer(recv_msg), 1, 200)  # 200毫秒超时接收
+                # print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
                 # if recvnum > 0 and recvnum != 0xffffffff: # 读取到返回帧，并且没有失败
                 if recvnum == 1 and recv_msg.Data[1] == 9:
                     CanId = recv_msg.Data[0]
                     # print(recvnum, recv_msg.ID, recv_msg.Data[0],recv_msg.Data[1],recv_msg.Data[2],recv_msg.Data[3],recv_msg.Data[4],recv_msg.Data[5],recv_msg.Data[6],recv_msg.Data[7])
                     timestr = datetime.datetime.now().strftime('%T')
-                    contents.insert(END, '\n%s 获取到CAN ID=%d电机的更新固件后版本号:0x%02x%02x%02x%02x' % (
-                    timestr, CanId, recv_msg.Data[2], recv_msg.Data[3], recv_msg.Data[4], recv_msg.Data[5]))  # 也是从文本尾插入
+                    if OTAtype == 1:
+                        contents.insert(END, '\n%s 获取到CAN ID=%d电机升级固件后版本号:0x%02x%02x%02x%02x' % (
+                            timestr, CanId, recv_msg.Data[2], recv_msg.Data[3], recv_msg.Data[4],
+                            recv_msg.Data[5]))  # 也是从文本尾插入
+                    elif OTAtype == 2:
+                        contents.insert(END, '\n%s 获取到CAN ID=%d电机升级配置后版本号:0x%02x%02x%02x%02x' % (
+                            timestr, CanId, recv_msg.Data[2], recv_msg.Data[3], recv_msg.Data[4],
+                            recv_msg.Data[5]))  # 也是从文本尾插入
                     # contents.insert(END, '\n%s 获取到CAN ID=%d 电机的更新固件后版本号'%(time,CanId))   #也是从文本尾插入
                     contents.update()
                     contents.see(END)
-                    logger.info("获取电机版本号break")
+                    # print("获取电机版本号break")
                     break_flag = 1
                     break
             if break_flag == 1:
@@ -579,6 +641,7 @@ top.geometry("499x480")
 
 CanCrc = 0
 CanId = 1
+OTAtype = 1
 FileName = ''
 FileSize = 0
 CrcCalcDLL = None
@@ -593,18 +656,37 @@ ClacCrc = Button()
 ClacCrc.config(text='CRC计算', command=CRCClac)
 # ClacCrc.place(x=2, y=26, width=60, height=24)
 
+# 下拉菜单
+cmb_CanId = ttk.Combobox(state="readonly")
+# cmb_CanId.place(x=320, y=12, width=120, height=30)
+cmb_CanId.place(x=60, y=12, width=102, height=30)
+cmb_CanId['value'] = (
+    '请选择CAN ID', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18',
+    '19',
+    '20')
+cmb_CanId.current(0)
+# ttk.Label(text="CAN ID:").place(x=250, y=16, width=66, height=24)
+ttk.Label(text="CAN ID:").place(x=2, y=16, width=58, height=24)
 
 # 下拉菜单
-cmb_CRCType = ttk.Combobox(state="readonly")
-# cmb_CRCType.place(x=64, y=26, width=64, height=24)
-cmb_CRCType['value'] = ('CRC16', 'CRC32')
-cmb_CRCType.current(0)
-# Label(text="=").place(x=130, y=26, width=16, height=24)
+cmb_OTAtype = ttk.Combobox(state="readonly")
+cmb_OTAtype.place(x=230, y=12, width=112, height=30)
+cmb_OTAtype['value'] = ('请选择OTA类型', 'APP', 'CFG')
+cmb_OTAtype.current(0)
+# ttk.Label(text="CAN ID:").place(x=250, y=16, width=66, height=24)
+ttk.Label(text="OTA类型:").place(x=170, y=16, width=58, height=24)
+
+# 下拉菜单
+# cmb_CRCType = ttk.Combobox(state="readonly")
+# cmb_CRCType.place(x=220, y=12, width=120, height=30)
+# cmb_CRCType['value'] = ('CRC16','CRC32')
+# cmb_CRCType.current(0)
+# Label(text="CAN ID:").place(x=180, y=26, width=16, height=24)
 
 # CRC显示框
 CRC_value = StringVar()
 # CRC_value.set('123456789')
-CRCVal = Entry(textvariable=CRC_value)
+# CRCVal = Entry(textvariable = CRC_value)
 # CRCVal.place(x=146, y=26, width=90, height=24)
 # CRCVal.config(state=DISABLED) #关闭文本输入框编辑状态
 
@@ -620,7 +702,7 @@ contents.place(x=2, y=52, width=469, height=419)
 CalcType = IntVar()
 CalcType.set(2)
 # radio_Str = Radiobutton(text="字符串",anchor="w", variable=CalcType, value=1, command=Print_Radiobutton)
-radio_File = Radiobutton(text="文件", anchor="w", variable=CalcType, value=2, command=Print_Radiobutton)
+# radio_File = Radiobutton(text="文件",anchor="w", variable=CalcType, value=2, command=Print_Radiobutton)
 # radio_Str.place(x=0, y=0, width=60, height=24)
 # radio_File.place(x=60*1, y=0, width=60, height=24)
 
@@ -634,7 +716,13 @@ cmb_CodeType_desc.place(x=60 * 3, y=0, width=96, height=24)
 
 # 打开文件按钮
 LoadFile = Button()
-LoadFile.config(text='打开.bin文件', command=OpenFile)
+LoadFile.config(text='打开文件', command=OpenFile)
+# LoadFile.config(text='打开.bin文件', command=OpenFile)
+
+# 打开文件按钮
+# LoadFile1 = Button()
+# LoadFile1.config(text='打开配置文件', command=OpenFile1)
+# LoadFile.config(text='打开.bin文件', command=OpenFile)
 
 # 初始化编码选择和打开文件按钮
 InitCRCCalcParam()

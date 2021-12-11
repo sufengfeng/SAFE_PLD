@@ -120,7 +120,7 @@ def send_data_th(i):
 
 
 # 初始化ControlCan
-def ConnectControlCan():
+def ConnectControlCan(channel):
     # 加载dll动态库 依赖库kerneldlls 需要放置到python二进制文件目录中。
     # so = CDLL("./ControlCAN.dll")
     _ControlCAN = ctypes.windll.LoadLibrary("ControlCAN.dll")
@@ -133,7 +133,7 @@ def ConnectControlCan():
     init_config = VCI_INIT_CONFIG(AccCode=0, AccMask=0xffffffff, Timing0=0x00, Timing1=0x1C)
 
     # 初始化can通道
-    iRet02 = _ControlCAN.VCI_InitCAN(4, 0, 0, pointer(init_config))
+    iRet02 = _ControlCAN.VCI_InitCAN(4, 0, channel, pointer(init_config))
     print("initcan result:", iRet02)
     return _ControlCAN, iRet01, iRet02
 
